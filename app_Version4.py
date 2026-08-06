@@ -50,15 +50,28 @@ def compute_metrics(df: pd.DataFrame, spot: float) -> pd.DataFrame:
     return out
 
 def compute_max_pain(df: pd.DataFrame):
-    strikes = df["strike"].values
-    call_oi = df["call_oi"].values
-    put_oi = df["put_oi"].values
+    if df.empty or "strike" not in df.columns:
+        return np.nan, pd.DataFrame(columns=["strike", "total_payout"])
+
+    work = df.dropna(subset=["strike"]).copy()
+    if work.empty:
+        return np.nan, pd.DataFrame(columns=["strike", "total_payout"])
+
+    strikes = work["strike"].to_numpy(dtype=float)
+    call_oi = work["call_oi"].fillna(0).to_numpy(dtype=float)
+    put_oi  = work["put_oi"].fillna(0).to_numpy(dtype=float)
+
+    if len(strikes) == 0:
+        return np.nan, pd.DataFrame(columns=["strike", "total_payout"])
 
     total_payouts = []
     for x in strikes:
         call_pay = np.sum(np.maximum(x - strikes, 0) * call_oi)
         put_pay  = np.sum(np.maximum(strikes - x, 0) * put_oi)
         total_payouts.append(call_pay + put_pay)
+
+    if len(total_payouts) == 0:
+        return np.nan, pd.DataFrame(columns=["strike", "total_payout"])
 
     mp_idx = int(np.argmin(total_payouts))
     return strikes[mp_idx], pd.DataFrame({"strike": strikes, "total_payout": total_payouts})
