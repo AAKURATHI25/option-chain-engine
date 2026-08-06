@@ -9,50 +9,43 @@ st.title("Option Chain Sentiment & Value Engine")
 uploaded = st.file_uploader("Upload NSE Option Chain CSV", type=["csv"])
 
 def clean_option_chain(raw: pd.DataFrame) -> pd.DataFrame:
-    # normalize headers
-    cols = {c: str(c).strip().lower().replace("\n", " ").replace("  ", " ") for c in raw.columns}
-    df = raw.rename(columns=cols).copy()
+    df = raw.copy()
 
-    # helper to find first matching column
-    def pick(candidates):
+    # normalize column names
+    df.columns = [
+        str(c).strip().lower().replace("\n", " ").replace("-", " ").replace("_", " ")
+        for c in df.columns
+    ]
+
+    def pick(keys):
         for c in df.columns:
-            name = c.lower()
-            for key in candidates:
-                if key in name:
-                    return c
+            cc = c.lower()
+            if all(k in cc for k in keys):
+                return c
         return None
 
-    # try to detect key fields from common NSE formats
-    strike_col = pick(["strike price", "strike pr", "strike"])
-    call_oi_col = pick(["ce oi", "call oi", "open interest ce", "ce open interest"])
-    put_oi_col  = pick(["pe oi", "put oi", "open interest pe", "pe open interest"])
-    call_ltp_col = pick(["ce ltp", "call ltp", "last price ce", "ce last price"])
-    put_ltp_col  = pick(["pe ltp", "put ltp", "last price pe", "pe last price"])
+    strike_col   = pick(["strike"]) or pick(["strike", "price"]) or pick(["strike", "pr"])
+    call_oi_col  = pick(["ce", "oi"]) or pick(["call", "oi"])
+    put_oi_col   = pick(["pe", "oi"]) or pick(["put", "oi"])
+    call_ltp_col = pick(["ce", "ltp"]) or pick(["call", "ltp"]) or pick(["ce", "last"])
+    put_ltp_col  = pick(["pe", "ltp"]) or pick(["put", "ltp"]) or pick(["pe", "last"])
 
-    needed = [strike_col, call_oi_col, put_oi_col, call_ltp_col, put_ltp_col]
-    if any(x is None for x in needed):
+    if any(x is None for x in [strike_col, call_oi_col, put_oi_col, call_ltp_col, put_ltp_col]):
         return pd.DataFrame(columns=["strike", "call_oi", "put_oi", "call_ltp", "put_ltp"])
 
     out = df[[strike_col, call_oi_col, put_oi_col, call_ltp_col, put_ltp_col]].copy()
     out.columns = ["strike", "call_oi", "put_oi", "call_ltp", "put_ltp"]
 
-    # numeric cleanup
     for c in out.columns:
-        out[c] = (
-            out[c]
-            .astype(str)
-            .str.replace(",", "", regex=False)
-            .str.replace("-", "", regex=False)
-            .str.strip()
+        out[c] = pd.to_numeric(
+            out[c].astype(str).str.replace(",", "", regex=False).str.replace("--", "", regex=False).str.strip(),
+            errors="coerce"
         )
-        out[c] = pd.to_numeric(out[c], errors="coerce")
 
-    # remove invalid rows
     out = out.dropna(subset=["strike"])
-    out = out[(out["strike"] > 0)]
-    out = out.sort_values("strike").reset_index(drop=True)
-
+    out = out[out["strike"] > 0].sort_values("strike").reset_index(drop=True)
     return out
+    
 def compute_metrics(df: pd.DataFrame, spot: float) -> pd.DataFrame:
     out = df.copy()
     out["call_iv"] = np.maximum(spot - out["strike"], 0)
@@ -90,6 +83,7 @@ def compute_max_pain(df: pd.DataFrame):
 
 if uploaded:
     raw = pd.read_csv(uploaded)
+    st.write("Detected columns:", list(raw.columns))
     df = clean_option_chain(raw)
 
     st.sidebar.header("Inputs")
