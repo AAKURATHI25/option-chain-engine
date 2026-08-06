@@ -83,17 +83,15 @@ if uploaded:
     st.sidebar.header("Inputs")
     spot = st.sidebar.number_input("Spot Price", min_value=0.0, value=float(df["strike"].median()), step=0.5)
     
-    m = compute_metrics(df, spot)
+        m = compute_metrics(df, spot)
 
-   if m.empty:
-    st.error("Could not parse valid option rows from this CSV.")
-    st.stop()
+    if m.empty:
+        st.error("Could not parse valid option rows from this CSV.")
+        st.stop()
 
     max_pain_strike, mp_curve = compute_max_pain(m)
     atm_idx = (m["strike"] - spot).abs().idxmin()
     atm = float(m.loc[atm_idx, "strike"])
-    pcr = (m["put_oi"].sum() / m["call_oi"].sum()) if m["call_oi"].sum() else np.nan
-
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Spot", f"{spot:.2f}")
     c2.metric("ATM Strike", f"{atm:.2f}")
