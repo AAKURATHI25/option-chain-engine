@@ -85,7 +85,7 @@ if uploaded:
     
     m = compute_metrics(df, spot)
 
-    if m.empty:
+   if m.empty:
     st.error("Could not parse valid option rows from this CSV.")
     st.stop()
 
