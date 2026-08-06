@@ -76,7 +76,6 @@ def compute_max_pain(df: pd.DataFrame):
 
 if uploaded:
     raw = pd.read_csv(uploaded, skiprows=1)
-    st.write("Detected columns:", list(raw.columns))
     df = clean_option_chain(raw)
 
     st.sidebar.header("Inputs")
