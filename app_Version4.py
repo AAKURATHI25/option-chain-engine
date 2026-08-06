@@ -8,39 +8,51 @@ st.title("Option Chain Sentiment & Value Engine")
 
 uploaded = st.file_uploader("Upload NSE Option Chain CSV", type=["csv"])
 
-def clean_option_chain(df: pd.DataFrame) -> pd.DataFrame:
-    df.columns = [str(c).strip().upper() for c in df.columns]
+def clean_option_chain(raw: pd.DataFrame) -> pd.DataFrame:
+    # normalize headers
+    cols = {c: str(c).strip().lower().replace("\n", " ").replace("  ", " ") for c in raw.columns}
+    df = raw.rename(columns=cols).copy()
 
-    cols = {}
-    for c in df.columns:
-        if "STRIKE" in c:
-            cols[c] = "strike"
-        elif "OI" in c and ("CALL" in c or "CE" in c):
-            cols[c] = "call_oi"
-        elif "OI" in c and ("PUT" in c or "PE" in c):
-            cols[c] = "put_oi"
-        elif ("LTP" in c or "LAST TRADED PRICE" in c) and ("CALL" in c or "CE" in c):
-            cols[c] = "call_ltp"
-        elif ("LTP" in c or "LAST TRADED PRICE" in c) and ("PUT" in c or "PE" in c):
-            cols[c] = "put_ltp"
+    # helper to find first matching column
+    def pick(candidates):
+        for c in df.columns:
+            name = c.lower()
+            for key in candidates:
+                if key in name:
+                    return c
+        return None
 
-    df = df.rename(columns=cols)
+    # try to detect key fields from common NSE formats
+    strike_col = pick(["strike price", "strike pr", "strike"])
+    call_oi_col = pick(["ce oi", "call oi", "open interest ce", "ce open interest"])
+    put_oi_col  = pick(["pe oi", "put oi", "open interest pe", "pe open interest"])
+    call_ltp_col = pick(["ce ltp", "call ltp", "last price ce", "ce last price"])
+    put_ltp_col  = pick(["pe ltp", "put ltp", "last price pe", "pe last price"])
 
-    needed = ["strike", "call_oi", "put_oi", "call_ltp", "put_ltp"]
-    for c in needed:
-        if c not in df.columns:
-            df[c] = np.nan
+    needed = [strike_col, call_oi_col, put_oi_col, call_ltp_col, put_ltp_col]
+    if any(x is None for x in needed):
+        return pd.DataFrame(columns=["strike", "call_oi", "put_oi", "call_ltp", "put_ltp"])
 
-    df = df[needed].copy()
+    out = df[[strike_col, call_oi_col, put_oi_col, call_ltp_col, put_ltp_col]].copy()
+    out.columns = ["strike", "call_oi", "put_oi", "call_ltp", "put_ltp"]
 
-    for c in needed:
-        df[c] = pd.to_numeric(df[c], errors="coerce")
+    # numeric cleanup
+    for c in out.columns:
+        out[c] = (
+            out[c]
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.replace("-", "", regex=False)
+            .str.strip()
+        )
+        out[c] = pd.to_numeric(out[c], errors="coerce")
 
-    df = df.dropna(subset=["strike"]).sort_values("strike").reset_index(drop=True)
-    df[["call_oi","put_oi","call_ltp","put_ltp"]] = df[["call_oi","put_oi","call_ltp","put_ltp"]].fillna(0)
+    # remove invalid rows
+    out = out.dropna(subset=["strike"])
+    out = out[(out["strike"] > 0)]
+    out = out.sort_values("strike").reset_index(drop=True)
 
-    return df
-
+    return out
 def compute_metrics(df: pd.DataFrame, spot: float) -> pd.DataFrame:
     out = df.copy()
     out["call_iv"] = np.maximum(spot - out["strike"], 0)
