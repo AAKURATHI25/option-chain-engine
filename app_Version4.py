@@ -9,38 +9,58 @@ st.title("Option Chain Sentiment & Value Engine")
 uploaded = st.file_uploader("Upload NSE Option Chain CSV", type=["csv"])
 
 def clean_option_chain(raw: pd.DataFrame) -> pd.DataFrame:
+    # Re-read uploaded CSV with 2-row header to flatten NSE grouped format
+    # raw here is already a dataframe from pd.read_csv(uploaded), so we work from it directly.
     df = raw.copy()
 
-    # normalize column names
-    df.columns = [
-        str(c).strip().lower().replace("\n", " ").replace("-", " ").replace("_", " ")
-        for c in df.columns
-    ]
+    # If dataframe has only 3 columns like CALLS / Unnamed: 1 / PUTS, it means wrong header parse.
+    # In that case return empty and let caller re-read properly (handled below).
+    if len(df.columns) <= 3:
+        return pd.DataFrame(columns=["strike", "call_oi", "put_oi", "call_ltp", "put_ltp"])
 
-    def pick(keys):
+    # normalize colnames
+    df.columns = [str(c).strip().lower() for c in df.columns]
+
+    def pick_col(side, field_keywords):
+        # side: "call"/"ce" or "put"/"pe"
         for c in df.columns:
             cc = c.lower()
-            if all(k in cc for k in keys):
+            if any(s in cc for s in side) and any(k in cc for k in field_keywords):
                 return c
         return None
 
-    strike_col   = pick(["strike"]) or pick(["strike", "price"]) or pick(["strike", "pr"])
-    call_oi_col  = pick(["ce", "oi"]) or pick(["call", "oi"])
-    put_oi_col   = pick(["pe", "oi"]) or pick(["put", "oi"])
-    call_ltp_col = pick(["ce", "ltp"]) or pick(["call", "ltp"]) or pick(["ce", "last"])
-    put_ltp_col  = pick(["pe", "ltp"]) or pick(["put", "ltp"]) or pick(["pe", "last"])
+    strike_col = next((c for c in df.columns if "strike" in c), None)
+    call_oi_col = pick_col(["call", "ce"], ["oi", "open interest"])
+    put_oi_col  = pick_col(["put", "pe"], ["oi", "open interest"])
+    call_ltp_col = pick_col(["call", "ce"], ["ltp", "last traded price", "last price"])
+    put_ltp_col  = pick_col(["put", "pe"], ["ltp", "last traded price", "last price"])
 
-    if any(x is None for x in [strike_col, call_oi_col, put_oi_col, call_ltp_col, put_ltp_col]):
+    # fallback for common NSE flattened names (if present exactly)
+    if call_oi_col is None:
+        call_oi_col = next((c for c in df.columns if "oi" in c and "ce" in c), None)
+    if put_oi_col is None:
+        put_oi_col = next((c for c in df.columns if "oi" in c and "pe" in c), None)
+    if call_ltp_col is None:
+        call_ltp_col = next((c for c in df.columns if "ltp" in c and "ce" in c), None)
+    if put_ltp_col is None:
+        put_ltp_col = next((c for c in df.columns if "ltp" in c and "pe" in c), None)
+
+    needed = [strike_col, call_oi_col, put_oi_col, call_ltp_col, put_ltp_col]
+    if any(x is None for x in needed):
         return pd.DataFrame(columns=["strike", "call_oi", "put_oi", "call_ltp", "put_ltp"])
 
     out = df[[strike_col, call_oi_col, put_oi_col, call_ltp_col, put_ltp_col]].copy()
     out.columns = ["strike", "call_oi", "put_oi", "call_ltp", "put_ltp"]
 
     for c in out.columns:
-        out[c] = pd.to_numeric(
-            out[c].astype(str).str.replace(",", "", regex=False).str.replace("--", "", regex=False).str.strip(),
-            errors="coerce"
+        out[c] = (
+            out[c].astype(str)
+            .str.replace(",", "", regex=False)
+            .str.replace('"', "", regex=False)
+            .str.strip()
+            .replace("-", np.nan)
         )
+        out[c] = pd.to_numeric(out[c], errors="coerce")
 
     out = out.dropna(subset=["strike"])
     out = out[out["strike"] > 0].sort_values("strike").reset_index(drop=True)
@@ -82,7 +102,11 @@ def compute_max_pain(df: pd.DataFrame):
     return strikes[mp_idx], pd.DataFrame({"strike": strikes, "total_payout": total_payouts})
 
 if uploaded:
-    raw = pd.read_csv(uploaded)
+    raw = pd.read_csv(uploaded, header=[0, 1])
+    raw.columns = [
+        f"{a}_{b}".strip("_").lower().replace(" ", "_")
+        for a, b in raw.columns.to_flat_index()
+    ]
     st.write("Detected columns:", list(raw.columns))
     df = clean_option_chain(raw)
 
