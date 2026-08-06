@@ -82,9 +82,8 @@ if uploaded:
 
     st.sidebar.header("Inputs")
     spot = st.sidebar.number_input("Spot Price", min_value=0.0, value=float(df["strike"].median()), step=0.5)
-    
-        m = compute_metrics(df, spot)
 
+    m = compute_metrics(df, spot)
     if m.empty:
         st.error("Could not parse valid option rows from this CSV.")
         st.stop()
@@ -92,10 +91,12 @@ if uploaded:
     max_pain_strike, mp_curve = compute_max_pain(m)
     atm_idx = (m["strike"] - spot).abs().idxmin()
     atm = float(m.loc[atm_idx, "strike"])
+    pcr = (m["put_oi"].sum() / m["call_oi"].sum()) if m["call_oi"].sum() else np.nan
+
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Spot", f"{spot:.2f}")
     c2.metric("ATM Strike", f"{atm:.2f}")
-    c3.metric("Max Pain", f"{max_pain_strike:.2f}")
+    c3.metric("Max Pain", f"{max_pain_strike:.2f}" if pd.notna(max_pain_strike) else "NA")
     c4.metric("PCR", f"{pcr:.3f}" if pd.notna(pcr) else "NA")
 
     st.subheader("Computed Table")
@@ -114,5 +115,6 @@ if uploaded:
     st.subheader("Max Pain Curve")
     fig_mp = px.line(mp_curve, x="strike", y="total_payout")
     st.plotly_chart(fig_mp, use_container_width=True)
+   
 else:
     st.info("Upload an NSE option chain CSV to begin.")
