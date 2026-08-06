@@ -102,11 +102,7 @@ def compute_max_pain(df: pd.DataFrame):
     return strikes[mp_idx], pd.DataFrame({"strike": strikes, "total_payout": total_payouts})
 
 if uploaded:
-    raw = pd.read_csv(uploaded, header=[0, 1])
-    raw.columns = [
-        f"{a}_{b}".strip("_").lower().replace(" ", "_")
-        for a, b in raw.columns.to_flat_index()
-    ]
+    raw = pd.read_csv(uploaded, skiprows=1)
     st.write("Detected columns:", list(raw.columns))
     df = clean_option_chain(raw)
 
