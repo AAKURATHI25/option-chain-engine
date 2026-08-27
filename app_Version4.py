@@ -105,7 +105,7 @@ if uploaded:
     fig_tv = px.area(
     tv_plot, x="strike", y="time_value", color="type",
     color_discrete_map={"call_tv": "#1f77b4", "put_tv": "#ff7f0e"},
-    title="Time Value Across Strikes"
+    
 )
     st.plotly_chart(fig_tv, use_container_width=True)
 
@@ -114,7 +114,7 @@ if uploaded:
     fig_oi = px.bar(
     oi_plot, x="strike", y="oi", color="type", barmode="group",
     color_discrete_map={"call_oi": "#1f77b4", "put_oi": "#ff7f0e"},
-    title="Open Interest Concentration Across Strikes"
+    
 )
     st.plotly_chart(fig_oi, use_container_width=True)
     
@@ -124,7 +124,7 @@ if uploaded:
     fig_iv = px.line(
     iv_plot, x="strike", y="iv", color="type", markers=True,
     color_discrete_map={"call_iv": "#1f77b4", "put_iv": "#ff7f0e"},
-    title="Implied Volatility Skew Across Strikes"
+    
 )
     st.plotly_chart(fig_iv, use_container_width=True)
 
