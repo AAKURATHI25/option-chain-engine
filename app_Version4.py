@@ -102,27 +102,18 @@ if uploaded:
 
     st.subheader("Time Value Across Strikes")
     tv_plot = m.melt(id_vars="strike", value_vars=["call_tv", "put_tv"], var_name="type", value_name="time_value")
-    fig_tv = px.area(
-    tv_plot, x="strike", y="time_value", color="type",
-    title="Time Value Across Strikes"
-)
+    fig_tv = px.area(tv_plot, x="strike", y="time_value", color="type")
     st.plotly_chart(fig_tv, use_container_width=True)
 
     st.subheader("Open Interest Concentration Across Strikes")
     oi_plot = m.melt(id_vars="strike", value_vars=["call_oi", "put_oi"], var_name="type", value_name="oi")
-    fig_oi = px.bar(
-    oi_plot, x="strike", y="oi", color="type", barmode="group",
-    title="Open Interest Concentration Across Strikes"
-)
+    fig_oi = px.bar(oi_plot, x="strike", y="oi", color="type", barmode="group")
     st.plotly_chart(fig_oi, use_container_width=True)
     
 
     st.subheader("Implied Volatility Skew Across Strikes")
     iv_plot = m.melt(id_vars="strike", value_vars=["call_iv", "put_iv"], var_name="type", value_name="iv")
-    fig_iv = px.line(
-    iv_plot, x="strike", y="iv", color="type", markers=True,
-    title="Implied Volatility Skew Across Strikes"
-)
+    fig_iv = px.line(iv_plot, x="strike", y="iv", color="type", markers=True)
     st.plotly_chart(fig_iv, use_container_width=True)
     
 else:
