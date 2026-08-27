@@ -5,6 +5,7 @@ import plotly.express as px
 
 st.set_page_config(page_title="Option Chain Engine", layout="wide")
 st.title("Option Chain Sentiment & Value Engine")
+st.warning("Disclaimer: This analysis is based on option-chain data captured at a specific point in time. Spot price used here is user-assumed/editable and may differ from live market spot. Results (PCR, ATM, IV, and other metrics) can change as market data updates.")
 
 uploaded = st.file_uploader("Upload NSE Option Chain CSV", type=["csv"])
 
