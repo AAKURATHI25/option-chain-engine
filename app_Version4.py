@@ -116,54 +116,6 @@ if uploaded:
     fig_iv = px.line(iv_plot, x="strike", y="iv", color="type", markers=True)
     st.plotly_chart(fig_iv, use_container_width=True)
 
-st.subheader("Chart Interpretation (Auto)")
 
-# PCR sentiment
-if pd.notna(pcr):
-    if pcr > 1.1:
-        pcr_view = "Bullish-to-neutral sentiment (higher Put OI vs Call OI)."
-    elif pcr < 0.9:
-        pcr_view = "Bearish-to-neutral sentiment (higher Call OI vs Put OI)."
-    else:
-        pcr_view = "Balanced/neutral sentiment zone."
-else:
-    pcr_view = "PCR not available."
-
-# ATM row
-atm_idx = (m["strike"] - spot).abs().idxmin()
-atm_row = m.loc[atm_idx]
-
-call_oi_atm = atm_row["call_oi"]
-put_oi_atm = atm_row["put_oi"]
-call_iv_atm = atm_row["call_iv"] if "call_iv" in m.columns else np.nan
-put_iv_atm = atm_row["put_iv"] if "put_iv" in m.columns else np.nan
-
-# OI concentration
-top_call_strike = m.loc[m["call_oi"].idxmax(), "strike"]
-top_put_strike = m.loc[m["put_oi"].idxmax(), "strike"]
-
-# IV skew view
-if pd.notna(call_iv_atm) and pd.notna(put_iv_atm):
-    if put_iv_atm > call_iv_atm:
-        iv_view = "Put IV is higher than Call IV near ATM (downside protection demand)."
-    elif call_iv_atm > put_iv_atm:
-        iv_view = "Call IV is higher than Put IV near ATM (upside speculation demand)."
-    else:
-        iv_view = "Call and Put IV are similar near ATM."
-else:
-    iv_view = "IV comparison near ATM not available."
-
-st.info(
-    f"""
-• **PCR ({pcr:.3f}):** {pcr_view}  
-• **ATM Strike:** {atm:.2f} | **Spot Assumed:** {spot:.2f}  
-• **Highest Call OI concentration:** Strike **{top_call_strike:.2f}**  
-• **Highest Put OI concentration:** Strike **{top_put_strike:.2f}**  
-• **ATM OI:** Call **{call_oi_atm:,.0f}**, Put **{put_oi_atm:,.0f}**  
-• **IV Skew Insight:** {iv_view}  
-
-_Disclaimer: Interpretation is model-based and indicative, using point-in-time uploaded data._
-"""
-)
 else:
     st.info("Upload an NSE option chain CSV to begin.")
