@@ -91,11 +91,10 @@ if uploaded:
     atm = float(m.loc[atm_idx, "strike"])
     pcr = (m["put_oi"].sum() / m["call_oi"].sum()) if m["call_oi"].sum() else np.nan
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3 = st.columns(3)
     c1.metric("Spot", f"{spot:.2f}")
     c2.metric("ATM Strike", f"{atm:.2f}")
-    c3.metric("Max Pain", f"{max_pain_strike:.2f}" if pd.notna(max_pain_strike) else "NA")
-    c4.metric("PCR", f"{pcr:.3f}" if pd.notna(pcr) else "NA")
+    c3.metric("PCR", f"{pcr:.3f}" if pd.notna(pcr) else "NA")
 
     st.subheader("Computed Table")
     st.dataframe(m, use_container_width=True)
@@ -109,10 +108,12 @@ if uploaded:
     oi_plot = m.melt(id_vars="strike", value_vars=["call_oi", "put_oi"], var_name="type", value_name="oi")
     fig_oi = px.bar(oi_plot, x="strike", y="oi", color="type", barmode="group")
     st.plotly_chart(fig_oi, use_container_width=True)
+    
 
-    st.subheader("Max Pain Curve")
-    fig_mp = px.line(mp_curve, x="strike", y="total_payout")
-    st.plotly_chart(fig_mp, use_container_width=True)
-   
+    st.subheader("Implied Volatility by Strike")
+    iv_plot = m.melt(id_vars="strike", value_vars=["call_iv", "put_iv"], var_name="type", value_name="iv")
+    fig_iv = px.line(iv_plot, x="strike", y="iv", color="type", markers=True)
+    st.plotly_chart(fig_iv, use_container_width=True)
+    
 else:
     st.info("Upload an NSE option chain CSV to begin.")
